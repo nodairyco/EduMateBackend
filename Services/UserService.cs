@@ -42,4 +42,19 @@ public class UserService(EduMateDatabaseContext context)
 
     public async Task<List<User>> FindAllAsync()
         => await _dbContext.users.ToListAsync();
+
+    public async Task<bool> UpdateByEmailAsync(string newEmail, string newUsername, string email)
+    {
+        var prevUser = await _dbContext.users.FindAsync(email);
+        if (prevUser == null)
+        {
+            return false;
+        }
+
+        prevUser.email = newEmail;
+        prevUser.username = newUsername;
+
+        await _dbContext.SaveChangesAsync();
+        return true;
+    }
 }
