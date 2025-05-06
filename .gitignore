@@ -3,3 +3,6 @@ appsettings.json
 appsettings.Development.json
 /Migrations/
 EduMateBackend.http
+bin
+obj
+.idea
