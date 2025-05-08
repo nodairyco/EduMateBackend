@@ -33,6 +33,7 @@ public class EduMateDatabaseContext(DbContextOptions<EduMateDatabaseContext> opt
             
             entity.Property(u => u.password)
                 .IsRequired();
+            //Creating Id as primary key
             entity.HasKey(u => u.id);
         });
     }
@@ -40,14 +41,13 @@ public class EduMateDatabaseContext(DbContextOptions<EduMateDatabaseContext> opt
 
 public class User
 {
-    [JsonIgnore]
-    public int id { get; set; }
+    public int id { get; set; } = 0;
     [MinLength(8)]
     [MaxLength(255)]
-    public string username { get; set; } = null!;
+    public string username { get; set; } = string.Empty;
     [MaxLength(255)]
-    public string email { get; set; } = null!;
+    public string email { get; set; } = string.Empty;
     [MinLength(8)]
     [MaxLength(255)]
-    public string password { get; set; } = null!;
+    public string password { get; set; } = string.Empty;
 }

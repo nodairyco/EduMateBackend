@@ -15,10 +15,7 @@
     <PackageReference Include="MicrosoftEntityFramework" Version="1.0.0" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
     <PackageReference Include="Scalar.AspNetCore" Version="2.2.7" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Helpers\" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.9.0" />
   </ItemGroup>
 
 </Project>

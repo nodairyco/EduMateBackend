@@ -17,19 +17,6 @@ public class UserController(UserService userService) : Controller
         return Ok(users);
     }
 
-    [HttpPost("/addUser")]
-    public async Task<ActionResult<string>> CreateUser(User newUser)
-    {
-        var user = await _service.AddUserAsync(newUser);
-
-        if (user == null)
-        {
-            return BadRequest("User with this email or username already exists");
-        }
-
-        return Ok($"Generated new user with email {newUser.email}");
-    }
-
     [HttpGet("/getByEmail")]
     public async Task<ActionResult<User>> FindUserByEmail(string email)
     {
