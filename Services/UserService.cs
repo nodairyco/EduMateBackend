@@ -1,4 +1,5 @@
 using EduMateBackend.Data;
+using EduMateBackend.Helpers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,26 +16,32 @@ public class UserService(EduMateDatabaseContext context)
     public bool VerifyPassword(User user, string hashedPassword, string password)
         => _hasher.VerifyHashedPassword(user, hashedPassword, password) 
            == PasswordVerificationResult.Success;
-    
-    public async Task<User?> AddUserAsync(User user)
+
+    public async Task<Tuple<Errors, User?>> AddUserAsync(UserDto user)
     {
-        try
+
+        var usernameUser = await FindByUsernameAsync(user.username);
+        if (usernameUser != null)
         {
-            var hashedPasswordUser =
-                new User
-                {
-                    id = user.id, email = user.email, username = user.username,
-                    password = HashPassword(user, user.password)
-                };
-            await _dbContext.users.AddAsync(hashedPasswordUser);
-            await _dbContext.SaveChangesAsync();
-        }
-        catch (Exception e)
-        {
-            return null;
+            return new Tuple<Errors, User?>(Errors.DuplicateUsername, null);
         }
 
-        return user;
+        if (await FindByEmailAsync(user.email) != null)
+        {
+            return new Tuple<Errors, User?>(Errors.DuplicateEmail, null);
+        }
+        
+        var hashedPasswordUser = new User
+        { 
+            email = user.email, username = user.username, 
+            password = user.password
+        };
+
+        hashedPasswordUser.password = HashPassword(hashedPasswordUser, hashedPasswordUser.password);
+        await _dbContext.users.AddAsync(hashedPasswordUser); 
+        await _dbContext.SaveChangesAsync();
+
+        return new Tuple<Errors, User?>(Errors.None, hashedPasswordUser);
     }
 
     public async Task<User?> FindByEmailAsync(string email)
