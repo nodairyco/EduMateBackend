@@ -38,8 +38,11 @@ public class UserService(EduMateDatabaseContext context)
     }
 
     public async Task<User?> FindByEmailAsync(string email)
-        => await _dbContext.users.FindAsync(email);
+        => await _dbContext.users.FirstOrDefaultAsync(u => u.email == email);
 
+    public async Task<User?> FindByUsernameAsync(string username)
+        => await _dbContext.users.FirstOrDefaultAsync(u => u.username == username);
+    
     public async Task<List<User>> FindAllAsync()
         => await _dbContext.users.ToListAsync();
 
