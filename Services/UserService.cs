@@ -54,9 +54,31 @@ public class UserService(EduMateDatabaseContext context)
         => await _dbContext.Users.FindAsync(id);
     
     public async Task<List<User>> FindAllAsync()
-        => await _dbContext.users.ToListAsync();
+        => await _dbContext.Users.ToListAsync();
 
-    public async Task<bool> UpdateByEmailAsync(string newEmail, string newUsername, string email)
+    public async Task<Errors> AddFollowerByEmailAsync(string follower, string followee)
+    {
+        var followerUser = await FindByEmailAsync(follower);
+        var followeeUser = await FindByEmailAsync(followee);
+
+        if (followeeUser == null || followerUser == null)
+        {
+            return Errors.UserNotFound;
+        }
+
+        var followTable = _dbContext.FollowerRelationships;
+        if (await followTable.FirstOrDefaultAsync(
+                f => f.FolloweeId == followeeUser.Id && f.FollowerId == followerUser.Id) != null)
+        {
+            return Errors.UserAlreadyFollowed;
+        }
+
+        followTable.Add(new Followers { FollowerId = followerUser.Id, FolloweeId = followeeUser.Id });
+        await _dbContext.SaveChangesAsync();
+        return Errors.None;
+    }
+
+    public async Task<Errors> UpdateByEmailAsync(UserDto newData, string email)
     {
         var user = await FindByEmailAsync(email);
         if (user == null)
