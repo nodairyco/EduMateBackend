@@ -30,13 +30,13 @@ public class AuthController(UserService userService, IConfiguration configuratio
     [HttpPost("/login")]
     public async Task<ActionResult<string>> LoginUser(UserCred request)
     {
-        var user = await _service.FindByEmailAsync(request.email);
+        var user = await _service.FindByEmailAsync(request.Email);
         if (user == null)
         {
             return BadRequest("User with this email does not exist");
         }
 
-        if (!_service.VerifyPassword(user, user.password, request.password))
+        if (!_service.VerifyPassword(user, user.Password, request.Password))
         {
             return BadRequest("Password does not match email");
         }
@@ -48,7 +48,7 @@ public class AuthController(UserService userService, IConfiguration configuratio
     {
         var claims = new List<Claim>
         {
-            new Claim(ClaimTypes.Name, user.username)
+            new(ClaimTypes.NameIdentifier, user.Id.ToString())
         };
 
         var key = new SymmetricSecurityKey(
