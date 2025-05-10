@@ -41,13 +41,19 @@ public class EduMateDatabaseContext(DbContextOptions<EduMateDatabaseContext> opt
 
 public class User
 {
-    public int id { get; set; } = 0;
+    public Guid Id { get; set; } = Guid.NewGuid();
     [MinLength(8)]
     [MaxLength(255)]
-    public string username { get; set; } = string.Empty;
+    public string Username { get; set; } = string.Empty;
     [MaxLength(255)]
-    public string email { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
     [MinLength(8)]
     [MaxLength(255)]
-    public string password { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+
+    [JsonIgnore]
+    public virtual ICollection<Followers> Following { get; set; } = new List<Followers>();
+   
+    [JsonIgnore]
+    public virtual ICollection<Followers> Followers { get; set; } = new List<Followers>();
 }

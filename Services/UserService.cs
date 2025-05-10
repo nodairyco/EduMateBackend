@@ -20,51 +20,65 @@ public class UserService(EduMateDatabaseContext context)
     public async Task<Tuple<Errors, User?>> AddUserAsync(UserDto user)
     {
 
-        var usernameUser = await FindByUsernameAsync(user.username);
+        var usernameUser = await FindByUsernameAsync(user.Username);
         if (usernameUser != null)
         {
             return new Tuple<Errors, User?>(Errors.DuplicateUsername, null);
         }
 
-        if (await FindByEmailAsync(user.email) != null)
+        if (await FindByEmailAsync(user.Email) != null)
         {
             return new Tuple<Errors, User?>(Errors.DuplicateEmail, null);
         }
         
         var hashedPasswordUser = new User
         { 
-            email = user.email, username = user.username, 
-            password = user.password
+            Email = user.Email, Username = user.Username, 
+            Password = user.Password
         };
 
-        hashedPasswordUser.password = HashPassword(hashedPasswordUser, hashedPasswordUser.password);
-        await _dbContext.users.AddAsync(hashedPasswordUser); 
+        hashedPasswordUser.Password = HashPassword(hashedPasswordUser, hashedPasswordUser.Password);
+        await _dbContext.Users.AddAsync(hashedPasswordUser); 
         await _dbContext.SaveChangesAsync();
 
         return new Tuple<Errors, User?>(Errors.None, hashedPasswordUser);
     }
 
     public async Task<User?> FindByEmailAsync(string email)
-        => await _dbContext.users.FirstOrDefaultAsync(u => u.email == email);
+        => await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == email);
 
     public async Task<User?> FindByUsernameAsync(string username)
-        => await _dbContext.users.FirstOrDefaultAsync(u => u.username == username);
+        => await _dbContext.Users.FirstOrDefaultAsync(u => u.Username == username);
+
+    public async Task<User?> FindByIdAsync(Guid id)
+        => await _dbContext.Users.FindAsync(id);
     
     public async Task<List<User>> FindAllAsync()
         => await _dbContext.users.ToListAsync();
 
     public async Task<bool> UpdateByEmailAsync(string newEmail, string newUsername, string email)
     {
-        var prevUser = await _dbContext.users.FindAsync(email);
-        if (prevUser == null)
+        var user = await FindByEmailAsync(email);
+        if (user == null)
         {
-            return false;
+            return Errors.UserNotFound;
         }
 
-        prevUser.email = newEmail;
-        prevUser.username = newUsername;
+        if (newData.Email != user.Email && await FindByEmailAsync(newData.Email) != null)
+        {
+            return Errors.DuplicateEmail;
+        }
 
-        await _dbContext.SaveChangesAsync();
-        return true;
+        if (newData.Username != user.Username && await FindByUsernameAsync(newData.Username) != null)
+        {
+            return Errors.DuplicateUsername;
+        }
+
+        user.Username = newData.Username;
+        user.Email = newData.Email;
+
+        await _dbContext.SaveChangesAsync() ;
+        
+        return Errors.None;
     }
 }

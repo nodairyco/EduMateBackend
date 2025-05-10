@@ -18,7 +18,7 @@ public class UserController(UserService userService) : Controller
     }
 
     [HttpGet("/getByEmail")]
-    public async Task<ActionResult<User>> FindUserByEmail(string email)
+    public async Task<ActionResult<User>> FindUserByEmailAsync(string email)
     {
         var user = await _service.FindByEmailAsync(email);
         if (user == null)
