@@ -4,8 +4,9 @@ public enum Errors
 {
     DuplicateUsername,
     DuplicateEmail,
-    UsernameTooLong,
     None,
     UserNotFound,
-    UserAlreadyFollowed
+    UserAlreadyFollowed,
+    UserNotFollowed,
+    Unauthorized
 }

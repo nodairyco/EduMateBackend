@@ -37,7 +37,8 @@ public class UserController(UserService userService) : Controller
     public async Task<ActionResult<User>> UpdateUserDataAsync
     (UserDto userDto, string email)
     {
-        var error = await _service.UpdateByEmailAsync(userDto, email);
+        var user = await GetUserFromJwtAsync(HttpContext);
+        var error = await _service.UpdateByEmailAsync(userDto, user.Email);
         
         return error switch
         {
@@ -50,10 +51,35 @@ public class UserController(UserService userService) : Controller
 
     [HttpGet("/addFollower")]
     [Authorize]
-    public async Task<ActionResult<User>> AddFollowerByEmailAsync(string followee)
+    public async Task<ActionResult<User>> AddFollowerByUsernameAsync(string followeeUsername)
     {
-        Console.WriteLine(ClaimTypes.NameIdentifier);
-        var identity = HttpContext.User.Identity as ClaimsIdentity;
+        var user = await GetUserFromJwtAsync(HttpContext);
+        var error = await _service.AddFollowerByUsernameAsync(user.Username, followeeUsername);
+        return error switch
+        {
+            Errors.UserNotFound => BadRequest("User with this username doesn't exist"),
+            Errors.UserAlreadyFollowed => BadRequest("User already followed"),
+            _ => Ok(user)
+        };
+    }
+
+    [HttpGet("/removeFollower")]
+    [Authorize]
+    public async Task<ActionResult<string>> RemoveFollowerByUsernameAsync(string followeeUsername)
+    {
+        var user = await GetUserFromJwtAsync(HttpContext);
+        var errors = await _service.RemoveFollowerByUsernameAsync(user.Username, followeeUsername);
+        return errors switch
+        {
+            Errors.UserNotFound => BadRequest("User with this Username doesn't exist"),
+            Errors.UserNotFollowed => BadRequest("User with this Username not followed"),
+            _ => Ok("User successfully removed from following list")  
+        };
+    }
+    
+    private async Task<User> GetUserFromJwtAsync(HttpContext httpContext)
+    {
+        var identity = httpContext.User.Identity as ClaimsIdentity;
         var guid = string.Empty;
         if (identity != null)
         {
@@ -61,12 +87,6 @@ public class UserController(UserService userService) : Controller
             guid = identity.FindFirst(ClaimTypes.NameIdentifier)!.Value;
         }
         var user = await _service.FindByIdAsync(new Guid(guid));
-        var error = await _service.AddFollowerByEmailAsync(user!.Email, followee);
-        return error switch
-        {
-            Errors.UserNotFound => BadRequest("User with this email doesn't exist"),
-            Errors.UserAlreadyFollowed => BadRequest("User already followed"),
-            _ => Ok(user)
-        };
+        return user!;
     }
 }

@@ -56,10 +56,10 @@ public class UserService(EduMateDatabaseContext context)
     public async Task<List<User>> FindAllAsync()
         => await _dbContext.Users.ToListAsync();
 
-    public async Task<Errors> AddFollowerByEmailAsync(string follower, string followee)
+    public async Task<Errors> AddFollowerByUsernameAsync(string follower, string followee)
     {
-        var followerUser = await FindByEmailAsync(follower);
-        var followeeUser = await FindByEmailAsync(followee);
+        var followerUser = await FindByUsernameAsync(follower);
+        var followeeUser = await FindByUsernameAsync(followee);
 
         if (followeeUser == null || followerUser == null)
         {
@@ -74,6 +74,29 @@ public class UserService(EduMateDatabaseContext context)
         }
 
         followTable.Add(new Followers { FollowerId = followerUser.Id, FolloweeId = followeeUser.Id });
+        await _dbContext.SaveChangesAsync();
+        return Errors.None;
+    }
+
+    public async Task<Errors> RemoveFollowerByUsernameAsync(string follower, string followee)
+    {
+        var followerUser = await FindByUsernameAsync(follower);
+        var followeeUser = await FindByUsernameAsync(followee);
+        
+        if (followeeUser == null || followerUser == null)
+        {
+            return Errors.UserNotFound;
+        }
+
+        var followRelationship = await _dbContext.FollowerRelationships.FirstOrDefaultAsync(f =>
+            f.FolloweeId == followeeUser.Id && f.FollowerId == followerUser.Id);
+        
+        if (followRelationship == null)
+        {
+            return Errors.UserNotFollowed;
+        }
+
+        _dbContext.FollowerRelationships.Remove(followRelationship);
         await _dbContext.SaveChangesAsync();
         return Errors.None;
     }
