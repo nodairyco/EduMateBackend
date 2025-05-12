@@ -35,7 +35,7 @@ public class UserController(UserService userService) : Controller
     [HttpPatch("/updateUserData")]
     [Authorize]
     public async Task<ActionResult<User>> UpdateUserDataAsync
-    (UserDto userDto, string email)
+    (UserDto userDto)
     {
         var user = await GetUserFromJwtAsync(HttpContext);
         var error = await _service.UpdateByEmailAsync(userDto, user.Email);
@@ -75,6 +75,16 @@ public class UserController(UserService userService) : Controller
             Errors.UserNotFollowed => BadRequest("User with this Username not followed"),
             _ => Ok("User successfully removed from following list")  
         };
+    }
+
+    [HttpDelete("/deleteSelf")]
+    [Authorize]
+    public async Task<ActionResult<User>> DeleteSelfAsync()
+    {
+        var identity = HttpContext.User.Identity as ClaimsIdentity;
+        var guid = identity!.FindFirst(ClaimTypes.NameIdentifier)!.Value;
+        var errors = await _service.DeleteById(guid);
+        return Ok(errors.Item1!);
     }
     
     private async Task<User> GetUserFromJwtAsync(HttpContext httpContext)

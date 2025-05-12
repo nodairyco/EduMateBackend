@@ -126,4 +126,16 @@ public class UserService(EduMateDatabaseContext context)
         
         return Errors.None;
     }
+
+    public async Task<Tuple<User?, Errors>> DeleteById(string id)
+    {
+        var guid = new Guid(id);
+        var user = await FindByIdAsync(guid);
+        if (user == null)
+            return new Tuple<User?, Errors>(null, Errors.UserNotFound);
+
+        _dbContext.Users.Remove(user);
+        await _dbContext.SaveChangesAsync();
+        return new Tuple<User?, Errors>(user, Errors.None);
+    }
 }
