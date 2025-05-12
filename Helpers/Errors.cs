@@ -8,5 +8,6 @@ public enum Errors
     UserNotFound,
     UserAlreadyFollowed,
     UserNotFollowed,
-    Unauthorized
+    Unauthorized,
+    UnknownError
 }

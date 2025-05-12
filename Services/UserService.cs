@@ -1,14 +1,17 @@
+using CG.Web.MegaApiClient;
 using EduMateBackend.Data;
 using EduMateBackend.Helpers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query;
 
 namespace EduMateBackend.Services;
 
-public class UserService(EduMateDatabaseContext context)
+public class UserService(EduMateDatabaseContext context, IConfiguration configuration)
 {
     private readonly EduMateDatabaseContext _dbContext = context;
     private readonly PasswordHasher<User> _hasher = new();
+    private readonly MegaApiClient _megaApiClient = new MegaApiClient();
 
     public string HashPassword(User user, string password)
         => _hasher.HashPassword(user, password);
@@ -137,5 +140,50 @@ public class UserService(EduMateDatabaseContext context)
         _dbContext.Users.Remove(user);
         await _dbContext.SaveChangesAsync();
         return new Tuple<User?, Errors>(user, Errors.None);
+    }
+
+    public async Task<Tuple<Errors, string>> ChangeUserAvatarAsync(User user, IFormFile newAvatar)
+    {
+        var extension = Path.GetExtension(newAvatar.FileName);
+        var newFileName = $"{user.Username}Avatar{extension}";
+        var nonPathName = $"{user.Username}Avatar{extension}";
+
+        var path = Path.Combine("Uploads", newFileName);
+
+        await using (var stream = new FileStream(path, FileMode.Create))
+        {
+            await newAvatar.CopyToAsync(stream);
+        }
+
+        Uri downloadLink;
+        
+        try
+        {
+            _megaApiClient.Login(
+                configuration.GetValue<string>("MegaSettings:Email")!,
+                configuration.GetValue<string>("MegaSettings:Password")!
+            );
+            var nodes = await _megaApiClient.GetNodesAsync();
+            var avatarFolder =
+                nodes.Single(x => x.Name == "Avatars" && x.Type == NodeType.Directory);
+            var uploadedAvatar =
+                _megaApiClient.UploadFile
+                (
+                    $"{configuration.GetValue<string>("MegaSettings:Path")!}/{nonPathName}",
+                    avatarFolder
+                );
+            downloadLink = await _megaApiClient.GetDownloadLinkAsync(uploadedAvatar);
+
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            return new Tuple<Errors, string>(Errors.UnknownError, string.Empty);
+        }
+
+        user.AvatarUrl = downloadLink.ToString();
+        await _dbContext.SaveChangesAsync();
+
+        return new Tuple<Errors, string>(Errors.None, downloadLink.ToString());
     }
 }

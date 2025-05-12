@@ -86,6 +86,26 @@ public class UserController(UserService userService) : Controller
         var errors = await _service.DeleteById(guid);
         return Ok(errors.Item1!);
     }
+
+    [HttpPost("/changeAvatar")]
+    [Authorize]
+    public async Task<ActionResult<string>> ChangeAvatarAsync([FromForm] IFormFile newAvatar)
+    {
+        if (newAvatar == null || newAvatar.Length == 0)
+        {
+            return BadRequest("Empty Image");
+        }
+
+        var user = await GetUserFromJwtAsync(HttpContext);
+
+        var response = await _service.ChangeUserAvatarAsync(user, newAvatar);
+
+        return response.Item1 switch
+        {
+            Errors.UnknownError => BadRequest("Unknown error occured"),
+            _ => Ok(response.Item2)
+        };
+    }
     
     private async Task<User> GetUserFromJwtAsync(HttpContext httpContext)
     {

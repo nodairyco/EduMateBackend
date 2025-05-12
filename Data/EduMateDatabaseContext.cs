@@ -39,6 +39,8 @@ public class EduMateDatabaseContext(DbContextOptions<EduMateDatabaseContext> opt
             
             entity.Property(u => u.Password)
                 .IsRequired();
+            entity.Property(u => u.AvatarUrl)
+                .HasMaxLength(1000);
             //Creating Id as primary key
             entity.HasKey(u => u.Id);
             
@@ -77,6 +79,7 @@ public class User
     [MaxLength(255)] public string Email { get; set; } = string.Empty;
     [MinLength(8)] [MaxLength(255)] public string Password { get; set; } = string.Empty;
 
+    public string AvatarUrl { get; set; } = string.Empty;
     [JsonIgnore] public virtual ICollection<Roles> Roles { get; set; } = new List<Roles>();
 
     [JsonIgnore] public virtual ICollection<Followers> Following { get; set; } = new List<Followers>();
