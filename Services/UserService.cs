@@ -12,12 +12,12 @@ public class UserService(
     IConfiguration configuration,
     CloudinaryService cloudinaryService,
     MongoDbDatabaseContext mongoDbDatabaseContext
-    )
+)
 {
     private readonly IMongoCollection<User> _userCollection = mongoDbDatabaseContext.Users;
     private readonly PasswordHasher<User> _hasher = new();
     private readonly Cloudinary _cloudinary = cloudinaryService.Cloudinary;
-    
+
 
     public string HashPassword(User user, string password)
         => _hasher.HashPassword(user, password);
@@ -69,7 +69,7 @@ public class UserService(
         if (user == null)
             return Errors.UserNotFound;
         user.Bio = bio;
-        await SaveChange(user); 
+        await SaveChange(user);
         return Errors.None;
     }
 
@@ -82,6 +82,12 @@ public class UserService(
         if (followeeUser == null || followerUser == null)
         {
             return Errors.UserNotFound;
+        }
+
+        if (followeeUser.Followers.Contains(followerUser.Id.ToString()) &&
+            followerUser.Following.Contains(followeeUser.Id.ToString()))
+        {
+            return Errors.UserAlreadyFollowed;
         }
 
         followerUser.Following.Add(followeeUser.Id.ToString());
@@ -102,13 +108,14 @@ public class UserService(
             return Errors.UserNotFound;
         }
 
-        if (!followeeUser.Followers.Contains(follower) && !followerUser.Following.Contains(followee))
+        if (!followeeUser.Followers.Contains(followerUser.Id.ToString()) &&
+            !followerUser.Following.Contains(followeeUser.Id.ToString()))
         {
             return Errors.UserNotFollowed;
         }
 
-        followerUser.Following.Remove(followee);
-        followeeUser.Followers.Remove(follower);
+        followerUser.Following.Remove(followeeUser.Id.ToString());
+        followeeUser.Followers.Remove(followerUser.Id.ToString());
         await SaveChange(followeeUser);
         await SaveChange(followerUser);
 
@@ -194,7 +201,7 @@ public class UserService(
         user.AvatarId = publicId;
 
         await SaveChange(user);
-        var uploadsDirectory = new System.IO.DirectoryInfo(
+        var uploadsDirectory = new DirectoryInfo(
             $"{configuration.GetValue<string>("CloudinarySettings:Path")}");
         foreach (var file in uploadsDirectory.GetFiles())
         {

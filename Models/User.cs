@@ -20,8 +20,6 @@ public class User
     public string AvatarId { get; set; } = string.Empty;
     public string DisplayName { get; set; } = string.Empty;
 
-    [BsonRepresentation(BsonType.ObjectId)]
     public ICollection<string> Following { get; set; } = new List<string>();
-    [BsonRepresentation(BsonType.ObjectId)]
     public ICollection<string> Followers { get; set; } = new List<string>();
 }
