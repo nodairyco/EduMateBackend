@@ -152,11 +152,10 @@ public class UserService(
         return new Tuple<User?, Errors>(user, Errors.None);
     }
 
-    public async Task<Tuple<Errors, string>> ChangeUserAvatarAsync(User user, IFormFile newAvatar)
+    public async Task<Tuple<Errors, string?>> ChangeUserAvatarAsync(User user, IFormFile newAvatar)
     {
         var extension = Path.GetExtension(newAvatar.FileName);
         var newFileName = $"{user.Username}Avatar{extension}";
-        var nonPathName = $"{user.Username}Avatar{extension}";
 
         var path = Path.Combine("Uploads", newFileName);
 
@@ -165,36 +164,44 @@ public class UserService(
             await newAvatar.CopyToAsync(stream);
         }
 
-        Uri downloadLink;
-        
+        string publicId;
+        Uri url;
+
         try
         {
-            _megaApiClient.Login(
-                configuration.GetValue<string>("MegaSettings:Email")!,
-                configuration.GetValue<string>("MegaSettings:Password")!
-            );
-            var nodes = await _megaApiClient.GetNodesAsync();
-            var avatarFolder =
-                nodes.Single(x => x.Name == "Avatars" && x.Type == NodeType.Directory);
-            var uploadedAvatar =
-                _megaApiClient.UploadFile
-                (
-                    $"{configuration.GetValue<string>("MegaSettings:Path")!}/{nonPathName}",
-                    avatarFolder
-                );
-            downloadLink = await _megaApiClient.GetDownloadLinkAsync(uploadedAvatar);
-
+            var uploadParams = new ImageUploadParams()
+            {
+                File = new FileDescription
+                {
+                    FileName = newFileName,
+                    FilePath = $"{configuration.GetValue<string>("CloudinarySettings:Path")}/{newFileName}"
+                },
+                UseFilename = true,
+                UniqueFilename = false,
+                Overwrite = true
+            };
+            var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+            publicId = uploadResult.PublicId!;
+            url = uploadResult.Url!;
         }
         catch (Exception e)
         {
             Console.WriteLine(e);
-            return new Tuple<Errors, string>(Errors.UnknownError, string.Empty);
+            return new Tuple<Errors, string?>(Errors.UnknownError, null);
         }
 
-        user.AvatarUrl = downloadLink.ToString();
-        await _dbContext.SaveChangesAsync();
+        user.AvatarUrl = url.ToString();
+        user.AvatarId = publicId;
 
-        return new Tuple<Errors, string>(Errors.None, downloadLink.ToString());
+        await SaveChange(user);
+        var uploadsDirectory = new System.IO.DirectoryInfo(
+            $"{configuration.GetValue<string>("CloudinarySettings:Path")}");
+        foreach (var file in uploadsDirectory.GetFiles())
+        {
+            file.Delete();
+        }
+
+        return new Tuple<Errors, string?>(Errors.None, url.ToString());
     }
 
     private async Task SaveChange(User user)
