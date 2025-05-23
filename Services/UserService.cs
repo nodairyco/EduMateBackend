@@ -1,28 +1,44 @@
-using CG.Web.MegaApiClient;
+using CloudinaryDotNet;
+using CloudinaryDotNet.Actions;
 using EduMateBackend.Data;
 using EduMateBackend.Helpers;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Query;
+using MongoDB.Driver;
+using User = EduMateBackend.Models.User;
 
 namespace EduMateBackend.Services;
 
-public class UserService(EduMateDatabaseContext context, IConfiguration configuration)
+public class UserService(
+    IConfiguration configuration,
+    CloudinaryService cloudinaryService,
+    MongoDbDatabaseContext mongoDbDatabaseContext
+    )
 {
-    private readonly EduMateDatabaseContext _dbContext = context;
+    private readonly IMongoCollection<User> _userCollection = mongoDbDatabaseContext.Users;
     private readonly PasswordHasher<User> _hasher = new();
-    private readonly MegaApiClient _megaApiClient = new MegaApiClient();
+    private readonly Cloudinary _cloudinary = cloudinaryService.Cloudinary;
+    
 
     public string HashPassword(User user, string password)
         => _hasher.HashPassword(user, password);
 
     public bool VerifyPassword(User user, string hashedPassword, string password)
-        => _hasher.VerifyHashedPassword(user, hashedPassword, password) 
+        => _hasher.VerifyHashedPassword(user, hashedPassword, password)
            == PasswordVerificationResult.Success;
+
+    public async Task<User?> FindByEmailAsync(string email)
+        => await _userCollection.Find(u => u.Email == email)
+            .FirstOrDefaultAsync();
+
+    public async Task<User?> FindByUsernameAsync(string username)
+        => await _userCollection.Find(u => u.Username == username)
+            .FirstOrDefaultAsync();
+
+    public async Task<User?> FindByIdAsync(Guid id)
+        => await _userCollection.Find(u => u.Id == id).FirstOrDefaultAsync();
 
     public async Task<Tuple<Errors, User?>> AddUserAsync(UserDto user)
     {
-
         var usernameUser = await FindByUsernameAsync(user.Username);
         if (usernameUser != null)
         {
@@ -33,31 +49,30 @@ public class UserService(EduMateDatabaseContext context, IConfiguration configur
         {
             return new Tuple<Errors, User?>(Errors.DuplicateEmail, null);
         }
-        
+
         var hashedPasswordUser = new User
-        { 
-            Email = user.Email, Username = user.Username, 
-            Password = user.Password
+        {
+            Email = user.Email, Username = user.Username,
+            Password = user.Password,
+            Bio = user.Bio
         };
 
         hashedPasswordUser.Password = HashPassword(hashedPasswordUser, hashedPasswordUser.Password);
-        await _dbContext.Users.AddAsync(hashedPasswordUser); 
-        await _dbContext.SaveChangesAsync();
+        await _userCollection.InsertOneAsync(hashedPasswordUser);
 
         return new Tuple<Errors, User?>(Errors.None, hashedPasswordUser);
     }
 
-    public async Task<User?> FindByEmailAsync(string email)
-        => await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == email);
+    public async Task<Errors> ChangeBioByUsernameAsync(string username, string bio)
+    {
+        var user = await FindByUsernameAsync(username);
+        if (user == null)
+            return Errors.UserNotFound;
+        user.Bio = bio;
+        await SaveChange(user); 
+        return Errors.None;
+    }
 
-    public async Task<User?> FindByUsernameAsync(string username)
-        => await _dbContext.Users.FirstOrDefaultAsync(u => u.Username == username);
-
-    public async Task<User?> FindByIdAsync(Guid id)
-        => await _dbContext.Users.FindAsync(id);
-    
-    public async Task<List<User>> FindAllAsync()
-        => await _dbContext.Users.ToListAsync();
 
     public async Task<Errors> AddFollowerByUsernameAsync(string follower, string followee)
     {
@@ -69,15 +84,11 @@ public class UserService(EduMateDatabaseContext context, IConfiguration configur
             return Errors.UserNotFound;
         }
 
-        var followTable = _dbContext.FollowerRelationships;
-        if (await followTable.FirstOrDefaultAsync(
-                f => f.FolloweeId == followeeUser.Id && f.FollowerId == followerUser.Id) != null)
-        {
-            return Errors.UserAlreadyFollowed;
-        }
+        followerUser.Following.Add(followeeUser.Id.ToString());
+        followeeUser.Followers.Add(followerUser.Id.ToString());
+        await SaveChange(followeeUser);
+        await SaveChange(followerUser);
 
-        followTable.Add(new Followers { FollowerId = followerUser.Id, FolloweeId = followeeUser.Id });
-        await _dbContext.SaveChangesAsync();
         return Errors.None;
     }
 
@@ -85,22 +96,22 @@ public class UserService(EduMateDatabaseContext context, IConfiguration configur
     {
         var followerUser = await FindByUsernameAsync(follower);
         var followeeUser = await FindByUsernameAsync(followee);
-        
+
         if (followeeUser == null || followerUser == null)
         {
             return Errors.UserNotFound;
         }
 
-        var followRelationship = await _dbContext.FollowerRelationships.FirstOrDefaultAsync(f =>
-            f.FolloweeId == followeeUser.Id && f.FollowerId == followerUser.Id);
-        
-        if (followRelationship == null)
+        if (!followeeUser.Followers.Contains(follower) && !followerUser.Following.Contains(followee))
         {
             return Errors.UserNotFollowed;
         }
 
-        _dbContext.FollowerRelationships.Remove(followRelationship);
-        await _dbContext.SaveChangesAsync();
+        followerUser.Following.Remove(followee);
+        followeeUser.Followers.Remove(follower);
+        await SaveChange(followeeUser);
+        await SaveChange(followerUser);
+
         return Errors.None;
     }
 
@@ -125,8 +136,8 @@ public class UserService(EduMateDatabaseContext context, IConfiguration configur
         user.Username = newData.Username;
         user.Email = newData.Email;
 
-        await _dbContext.SaveChangesAsync() ;
-        
+        await SaveChange(user);
+
         return Errors.None;
     }
 
@@ -137,8 +148,7 @@ public class UserService(EduMateDatabaseContext context, IConfiguration configur
         if (user == null)
             return new Tuple<User?, Errors>(null, Errors.UserNotFound);
 
-        _dbContext.Users.Remove(user);
-        await _dbContext.SaveChangesAsync();
+        await _userCollection.DeleteOneAsync(u => u.Id == guid);
         return new Tuple<User?, Errors>(user, Errors.None);
     }
 
@@ -185,5 +195,10 @@ public class UserService(EduMateDatabaseContext context, IConfiguration configur
         await _dbContext.SaveChangesAsync();
 
         return new Tuple<Errors, string>(Errors.None, downloadLink.ToString());
+    }
+
+    private async Task SaveChange(User user)
+    {
+        await _userCollection.ReplaceOneAsync(u => u.Id == user.Id, user);
     }
 }

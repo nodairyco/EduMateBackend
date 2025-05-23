@@ -4,6 +4,7 @@ using EduMateBackend.Helpers;
 using EduMateBackend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using User = EduMateBackend.Models.User;
 
 namespace EduMateBackend.Controllers;
 
@@ -12,25 +13,14 @@ namespace EduMateBackend.Controllers;
 public class UserController(UserService userService) : Controller
 { 
     private readonly UserService _service = userService;
-
-    [HttpGet("/getAll")]
-    public async Task<ActionResult<List<User>>> FindAllUsersAsync()
+    
+    [HttpGet("/getSelf")]
+    [Authorize]
+    public async Task<ActionResult<User>> GetSelfAsync()
     {
-        var users = await _service.FindAllAsync();
-        return Ok(users);
+        return Ok(await GetUserFromJwtAsync(HttpContext));
     }
-
-    [HttpGet("/getByEmail")]
-    public async Task<ActionResult<User>> FindUserByEmailAsync(string email)
-    {
-        var user = await _service.FindByEmailAsync(email);
-        if (user == null)
-        {
-            return NotFound();
-        }
-
-        return Ok(user);
-    }
+    
 
     [HttpPatch("/updateUserData")]
     [Authorize]
@@ -105,6 +95,31 @@ public class UserController(UserService userService) : Controller
             Errors.UnknownError => BadRequest("Unknown error occured"),
             _ => Ok(response.Item2)
         };
+    }
+
+    [HttpPost("/changeBio")]
+    [Authorize]
+    public async Task<ActionResult> ChangeBioAsync(string bio)
+    {
+        var user = await GetUserFromJwtAsync(HttpContext);
+        var errors = await _service.ChangeBioByUsernameAsync(user.Username, bio);
+        return errors switch
+        {
+            Errors.UserNotFound => NotFound(),
+            _ => Ok()
+        };
+    }
+
+    [HttpGet("/getUserBio/{username}")]
+    public async Task<ActionResult> GetUserBioAsync(string username)
+    {
+        var user = await _service.FindByUsernameAsync(username);
+        if (user == null)
+        {
+            return NotFound();
+        }
+
+        return Content(user.Bio, "text/html");
     }
     
     private async Task<User> GetUserFromJwtAsync(HttpContext httpContext)
