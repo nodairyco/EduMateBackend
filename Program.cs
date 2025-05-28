@@ -31,6 +31,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<CloudinaryService>();
 builder.Services.AddTransient<EmailService>();
+builder.Services.AddHostedService<CleanupUnusedPasskeysService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
