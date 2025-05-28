@@ -10,16 +10,15 @@ namespace EduMateBackend.Services;
 public class EmailService(IConfiguration configuration)
 {
     private PasswordHasher<User> _idHasher = new();
+    private readonly string _emMail = configuration.GetValue<string>("Email:Email")!;
+    private readonly string _emPassword = configuration.GetValue<string>("Email:Password")!;
 
     public Task SendVerificationEmailAsync(User user, string token)
     {
-        var emMail = configuration.GetValue<string>("Email:Email")!;
-        var emPassword = configuration.GetValue<string>("Email:Password")!;
-
         var client = new SmtpClient("smtp.gmail.com", 587)
         {
             EnableSsl = true,
-            Credentials = new NetworkCredential(emMail, emPassword)
+            Credentials = new NetworkCredential(_emMail, _emPassword)
         };
 
         var link = $"http://localhost:5190/verifyUserEmail?token={token}";
@@ -29,13 +28,31 @@ public class EmailService(IConfiguration configuration)
 
         return client.SendMailAsync(
             new MailMessage(
-                from: emMail,
+                from: _emMail,
                 to: user.Email,
                 subject: subject,
                 body: body
             ));
     }
 
-    
+    public Task SendPasswordChangePassKeyAsync(string email, string passkey)
+    {
+        var client = new SmtpClient("smtp.gmail.com", 587)
+        {
+            EnableSsl = true,
+            Credentials = new NetworkCredential(_emMail, _emPassword)
+        };
 
+        const string subject = "EduMate Password Reset Key";
+        var body =
+            $"Your one time password reset key is: {passkey}. \n You only have 10 minutes to change the password.";
+
+        return client.SendMailAsync(
+            new MailMessage(
+                from: _emMail,
+                to: email,
+                subject: subject,
+                body: body
+            ));
+    }
 }

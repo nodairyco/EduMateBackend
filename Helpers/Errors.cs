@@ -9,5 +9,8 @@ public enum Errors
     UserAlreadyFollowed,
     UserNotFollowed,
     Unauthorized,
-    UnknownError
+    UnknownError,
+    PctNotFound,
+    IncorrectPasskey,
+    PasskeyTooOld
 }

@@ -1,3 +1,4 @@
+using System.Net.Mail;
 using System.Security.Claims;
 using EduMateBackend.Data;
 using EduMateBackend.Helpers;
@@ -10,9 +11,10 @@ namespace EduMateBackend.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-public class UserController(UserService userService) : Controller
+public class UserController(UserService userService, EmailService emailService) : Controller
 { 
     private readonly UserService _service = userService;
+    private readonly EmailService _emailService = emailService;
     
     [HttpGet("/getSelf")]
     [Authorize]
@@ -91,6 +93,46 @@ public class UserController(UserService userService) : Controller
             Errors.UserNotFound => NotFound(),
             _ => Ok()
         };
+    }
+
+    [HttpGet("/getChangePasskey")]
+    public async Task<ActionResult> GetPasswordChangeKeyAsync(string email)
+    {
+        var errorTuple = await _service.GeneratePassKeyByEmailAsync(email);
+        if (errorTuple.Item1 == Errors.UserNotFound)
+            return BadRequest("No user with this email");
+        var pct = errorTuple.Item2!;
+        try
+        {
+            await _emailService.SendPasswordChangePassKeyAsync(email, pct.PassKey);
+        }
+        catch (SmtpFailedRecipientException e)
+        {
+            Console.WriteLine(e);
+            return BadRequest("Invalid email");
+        }
+
+        return Ok("Reset key sent via email");
+    }
+
+    [HttpGet("/changePassword")]
+    public async Task<ActionResult> ChangePasswordAsync(string email, string passkey, string newPassword)
+    {
+        var user = await _service.FindByEmailAsync(email);
+        if (user == null)
+            return BadRequest("User with this email doesn't exist");
+
+        var passKeyVerification = await _service.VerifyPasskey(email, passkey);
+        switch (passKeyVerification)
+        {
+            case Errors.PctNotFound or Errors.IncorrectPasskey:
+                return BadRequest("Cannot change password as passkey doesn't match email");
+            case Errors.PasskeyTooOld:
+                return BadRequest("The given passkey is out of date. Generate new one.");
+        }
+
+        user = await _service.ChangePasswordAsync(user, newPassword);
+        return Ok(user);
     }
 
     private async Task<User> GetUserFromJwtAsync(HttpContext httpContext)

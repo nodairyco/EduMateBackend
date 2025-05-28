@@ -2,6 +2,7 @@ using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
 using EduMateBackend.Data;
 using EduMateBackend.Helpers;
+using EduMateBackend.Models;
 using Microsoft.AspNetCore.Identity;
 using MongoDB.Driver;
 using User = EduMateBackend.Models.User;
@@ -15,6 +16,7 @@ public class UserService(
 )
 {
     private readonly IMongoCollection<User> _userCollection = mongoDbDatabaseContext.Users;
+    private readonly IMongoCollection<PasswordChangeTable> _pctCollection = mongoDbDatabaseContext.PCT;
     private readonly PasswordHasher<User> _hasher = new();
     private readonly Cloudinary _cloudinary = cloudinaryService.Cloudinary;
 
@@ -61,6 +63,56 @@ public class UserService(
         await _userCollection.InsertOneAsync(hashedPasswordUser);
 
         return new Tuple<Errors, User?>(Errors.None, hashedPasswordUser);
+    }
+
+    public async Task<User> ChangePasswordAsync(User user, string password)
+    {
+        user.Password = password;
+        user.Password = HashPassword(user, user.Password);
+        await SaveChange(user);
+        return user;
+    }
+
+    public async Task<Tuple<Errors, PasswordChangeTable?>> GeneratePassKeyByEmailAsync(string email)
+    {
+        var user = await FindByEmailAsync(email);
+        if (user == null)
+        {
+            return new Tuple<Errors, PasswordChangeTable?>(Errors.UserNotFound, null);
+        }
+
+        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+        var random = new Random();
+        var secretPassKey = new string(Enumerable.Repeat(chars, 8)
+            .Select(s => s[random.Next(s.Length)]).ToArray());
+
+        var pct = new PasswordChangeTable
+        {
+            Email = user.Email,
+            PassKey = secretPassKey
+        };
+
+        await _pctCollection.InsertOneAsync(pct);
+        return new Tuple<Errors, PasswordChangeTable?>(Errors.None, pct);
+    }
+
+    public async Task<Errors> VerifyPasskey(string email, string passkey)
+    {
+        var pct = await _pctCollection.Find(p => p.Email == email)
+            .FirstOrDefaultAsync();
+        if (pct == null)
+            return Errors.PctNotFound;
+        if (pct.PassKey != passkey)
+            return Errors.IncorrectPasskey;
+        if ((DateTime.UtcNow - pct.CreationDate).TotalMinutes < 10)
+        {
+            await _pctCollection.DeleteOneAsync(ptc => ptc.Id == pct.Id);
+            return Errors.None;
+        }
+
+        await _pctCollection.DeleteOneAsync(ptc => ptc.Email == email);
+        return Errors.PasskeyTooOld;
     }
 
     public async Task<Errors> ChangeBioByUsernameAsync(string username, string bio)

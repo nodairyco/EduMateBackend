@@ -2,7 +2,6 @@ using System.Text;
 using EduMateBackend.Data;
 using EduMateBackend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 

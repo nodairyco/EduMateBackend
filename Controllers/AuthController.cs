@@ -29,8 +29,17 @@ public class AuthController(UserService userService, IConfiguration configuratio
             return BadRequest("Username is taken");
 
         var user = errorTuple.Item2!;
-
-        await _emailService.SendVerificationEmailAsync(user, CreateMinimalToken(user));
+        
+        try
+        {
+            await _emailService.SendVerificationEmailAsync(user, CreateMinimalToken(user));
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            await _service.DeleteById(user.Id.ToString());
+            return BadRequest("Invalid email user not added");
+        }
 
         return user;
     }
