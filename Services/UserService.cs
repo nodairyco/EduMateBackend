@@ -211,6 +211,12 @@ public class UserService(
         return new Tuple<Errors, string?>(Errors.None, url.ToString());
     }
 
+    public async Task MakeVerified(User user)
+    {
+        user.IsVerified = true;
+        await SaveChange(user);
+    }
+
     private async Task SaveChange(User user)
     {
         await _userCollection.ReplaceOneAsync(u => u.Id == user.Id, user);

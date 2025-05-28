@@ -22,25 +22,8 @@ public class UserController(UserService userService) : Controller
     }
     
 
-    [HttpPatch("/updateUserData")]
-    [Authorize]
-    public async Task<ActionResult<User>> UpdateUserDataAsync
-    (UserDto userDto)
-    {
-        var user = await GetUserFromJwtAsync(HttpContext);
-        var error = await _service.UpdateByEmailAsync(userDto, user.Email);
-        
-        return error switch
-        {
-            Errors.DuplicateUsername => BadRequest("Cannot have duplicate Username"),
-            Errors.DuplicateEmail => BadRequest("Cannot have duplicate Email"),
-            Errors.UserNotFound => NotFound("User with this email not found"),
-            _ => Ok(await _service.FindByEmailAsync(userDto.Email)) 
-        };
-    }
-
     [HttpGet("/addFollower")]
-    [Authorize]
+    [Authorize(Policy = "VerifiedOnly")]
     public async Task<ActionResult<User>> AddFollowerByUsernameAsync(string followeeUsername)
     {
         var user = await GetUserFromJwtAsync(HttpContext);
@@ -54,7 +37,7 @@ public class UserController(UserService userService) : Controller
     }
 
     [HttpGet("/removeFollower")]
-    [Authorize]
+    [Authorize(Policy = "VerifiedOnly")]
     public async Task<ActionResult<string>> RemoveFollowerByUsernameAsync(string followeeUsername)
     {
         var user = await GetUserFromJwtAsync(HttpContext);
@@ -78,7 +61,7 @@ public class UserController(UserService userService) : Controller
     }
 
     [HttpPost("/changeAvatar")]
-    [Authorize]
+    [Authorize(Policy = "VerifiedOnly")]
     public async Task<ActionResult<string>> ChangeAvatarAsync([FromForm] IFormFile newAvatar)
     {
         if (newAvatar == null || newAvatar.Length == 0)
@@ -98,7 +81,7 @@ public class UserController(UserService userService) : Controller
     }
 
     [HttpPost("/changeBio")]
-    [Authorize]
+    [Authorize(Policy = "VerifiedOnly")]
     public async Task<ActionResult> ChangeBioAsync(string bio)
     {
         var user = await GetUserFromJwtAsync(HttpContext);
@@ -110,18 +93,6 @@ public class UserController(UserService userService) : Controller
         };
     }
 
-    [HttpGet("/getUserBio/{username}")]
-    public async Task<ActionResult> GetUserBioAsync(string username)
-    {
-        var user = await _service.FindByUsernameAsync(username);
-        if (user == null)
-        {
-            return NotFound();
-        }
-
-        return Content(user.Bio, "text/html");
-    }
-    
     private async Task<User> GetUserFromJwtAsync(HttpContext httpContext)
     {
         var identity = httpContext.User.Identity as ClaimsIdentity;

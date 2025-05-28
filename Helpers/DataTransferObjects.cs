@@ -4,7 +4,7 @@ namespace EduMateBackend.Helpers;
 
 public class UserDto
 {
-    [MinLength(8)]
+    [MinLength(3)]
     [MaxLength(50)]
     public string Username { get; set; } = string.Empty;
     [MaxLength(255)]

@@ -31,6 +31,7 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<CloudinaryService>();
+builder.Services.AddTransient<EmailService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -47,6 +48,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true
         };
     });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("VerifiedOnly", policy => policy.RequireClaim("IsVerified", "True"));
+});
 
 var app = builder.Build();
 
