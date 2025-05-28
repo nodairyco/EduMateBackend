@@ -16,7 +16,7 @@ public class UserService(
 )
 {
     private readonly IMongoCollection<User> _userCollection = mongoDbDatabaseContext.Users;
-    private readonly IMongoCollection<PasswordChangeTable> _pctCollection = mongoDbDatabaseContext.PCT;
+    private readonly IMongoCollection<PasswordChangeTable> _pctCollection = mongoDbDatabaseContext.Pct;
     private readonly PasswordHasher<User> _hasher = new();
     private readonly Cloudinary _cloudinary = cloudinaryService.Cloudinary;
 

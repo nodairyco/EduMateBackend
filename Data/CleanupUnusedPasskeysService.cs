@@ -5,7 +5,7 @@ namespace EduMateBackend.Data;
 
 public class CleanupUnusedPasskeysService(MongoDbDatabaseContext dbContext) : BackgroundService
 {
-    private readonly IMongoCollection<PasswordChangeTable> _pctCollection = dbContext.PCT;
+    private readonly IMongoCollection<PasswordChangeTable> _pctCollection = dbContext.Pct;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

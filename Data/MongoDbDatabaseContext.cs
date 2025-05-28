@@ -13,9 +13,9 @@ public class MongoDbDatabaseContext
         _database = client.GetDatabase("EduMate");
     }
 
-    public IMongoCollection<User> Users => _Database.GetCollection<EduMateBackend.Models.User>("Users");
     public IMongoCollection<User> Users => _database.GetCollection<User>("Users");
+    public IMongoCollection<Post> Posts => _database.GetCollection<Post>("Posts");
 
-    public IMongoCollection<PasswordChangeTable> PCT =>
+    public IMongoCollection<PasswordChangeTable> Pct =>
         _database.GetCollection<PasswordChangeTable>("PasswordChangeTable");
 }
