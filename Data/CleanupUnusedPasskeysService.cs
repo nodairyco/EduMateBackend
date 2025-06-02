@@ -11,8 +11,11 @@ public class CleanupUnusedPasskeysService(MongoDbDatabaseContext dbContext) : Ba
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            await _pctCollection.DeleteManyAsync(pct => (DateTime.UtcNow - pct.CreationDate).TotalMinutes > 10,
-                cancellationToken: stoppingToken);
+            var cutoffTime = DateTime.UtcNow.AddMinutes(-10);
+
+            var filter = Builders<PasswordChangeTable>.Filter.Lt(pct => pct.CreationDate, cutoffTime);
+            var result = await _pctCollection.DeleteManyAsync(filter, stoppingToken);
+
             await Task.Delay(TimeSpan.FromMinutes(30), stoppingToken);
         }
     }

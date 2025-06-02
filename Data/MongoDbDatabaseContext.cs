@@ -9,7 +9,9 @@ public class MongoDbDatabaseContext
 
     public MongoDbDatabaseContext(IConfiguration configuration)
     {
-        var client = new MongoClient(configuration.GetConnectionString("MongoDb"));
+        var settings = MongoClientSettings.FromConnectionString(configuration.GetConnectionString("MongoDb"));
+        settings.ServerApi = new ServerApi(ServerApiVersion.V1);
+        var client = new MongoClient(settings);
         _database = client.GetDatabase("EduMate");
     }
 
